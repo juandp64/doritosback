@@ -66,7 +66,7 @@ exports.registrarCodigo = async (req, res) => {
         return res.json({ message: 'No Ganaste' });
     }
 
-    if (codigoValido.estado !== 'activo') {
+    if (codigoValido.estado) {
         return res.json({ message: 'El código ya ha sido reclamado' });
     }
 
@@ -74,7 +74,7 @@ exports.registrarCodigo = async (req, res) => {
     codigoValido.estado = userId;
     await codigoValido.save();
 
-    // Registrar el intento como ganador
+    // Registrar el intento como ganador, con la referencia a Codigo
     const nuevoIntento = new Intento({
         userId,
         codigo: codigoValido._id,
@@ -94,8 +94,8 @@ exports.tablaUser = async (req, res) => {
 
 // Mostrar la tabla para el admin con todos los usuarios ganadores
 exports.tablaAdmin = async (req, res) => {
-    // Buscar en la colección Codigos todos los documentos donde el estado sea un userId válido (es decir, diferente de 'activo')
-    const codigosGanadores = await Codigo.find({ estado: { $ne: 'activo' } }).populate('estado'); // Popular el userId que está en el campo estado
+    // Buscar en la colección Codigos todos los documentos donde el estado tenga un userId
+    const codigosGanadores = await Codigo.find({ estado: { $ne: null } }).populate('estado'); // Popular el userId que está en el campo estado
     const ganadores = [];
 
     // Obtener información de los usuarios que han ganado
