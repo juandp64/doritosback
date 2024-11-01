@@ -140,9 +140,9 @@ exports.tablaAdmin = async (req, res) => {
 
 
 // Obtener todos los códigos disponibles (no reclamados)
-exports.allCodigo = async (req, res) => {
+exports.allCodigo = async (res) => {
     try {
-        const codigosDisponibles = await Codigo.find({ estado: null });
+        const codigosDisponibles = await Codigo.find();
         res.json(codigosDisponibles);
     } catch (error) {
         console.error(error);
