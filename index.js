@@ -1,7 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const doritosRoutes = require('./routes/doritosRoutes');
-require('dotenv').config();
+require('dotenv').config(); 
+
+console.log("Cadena de conexión:", process.env.MONGO_URI); 
 
 const app = express();
 app.use(express.json());
