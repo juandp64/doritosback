@@ -9,5 +9,6 @@ router.post('/newAdmin', doritosController.newAdmin);
 router.post('/registrarCodigo', doritosController.registrarCodigo);
 router.get('/tablaUser/:userId', doritosController.tablaUser);
 router.get('/tablaAdmin', doritosController.tablaAdmin);
+router.get('/allCodigo', doritosController.allCodigo);
 
 module.exports = router;
