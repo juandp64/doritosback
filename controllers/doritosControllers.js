@@ -28,11 +28,19 @@ exports.login = async (req, res) => {
 exports.newUser = async (req, res) => {
     try {
         const { email, pass, nombre, cedula, ciudad, celular, fechaNacimiento } = req.body;
+        
+        // Validar que todos los campos requeridos estén presentes
+        if (!email || !pass || !nombre || !cedula || !ciudad || !celular || !fechaNacimiento) {
+            return res.status(400).json({ message: 'Todos los campos son obligatorios' });
+        }
+        
         const hashedPass = await bcrypt.hash(pass, 10);
-
+        
+        // Crear el usuario
         const newUser = new User({ email, pass: hashedPass, rol: 'user' });
         const savedUser = await newUser.save();
-
+        
+        // Crear la información del usuario en UserInfo
         const newUserInfo = new UserInfo({
             userId: savedUser._id,
             nombre, cedula, ciudad, celular, fechaNacimiento
@@ -42,9 +50,10 @@ exports.newUser = async (req, res) => {
         res.json({ message: 'Usuario creado exitosamente' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error en el servidor' });
+        res.status(500).json({ message: 'Error al crear el usuario' });
     }
 };
+
 
 // Crear un nuevo administrador
 exports.newAdmin = async (req, res) => {
@@ -68,39 +77,30 @@ exports.registrarCodigo = async (req, res) => {
         const { userId, codigo } = req.body;
 
         const codigoValido = await Codigo.findOne({ codigo });
+
         if (!codigoValido) {
-            // Si el código no es válido, guardarlo en Intentos y retornar que no ganó
-            const nuevoIntento = new Intento({
-                userId,
-                codigo,
-                fecha: new Date()
-            });
+            const nuevoIntento = new Intento({ userId, codigo });
             await nuevoIntento.save();
             return res.json({ message: 'No Ganaste' });
         }
 
-        if (codigoValido.estado) {
+        if (codigoValido.estado === 'reclamado') {
             return res.json({ message: 'El código ya ha sido reclamado' });
         }
 
-        // Actualizar el estado del código con el userId del usuario que lo reclamó
-        codigoValido.estado = userId;
+        codigoValido.estado = 'reclamado';
         await codigoValido.save();
 
-        // Registrar el intento como ganador, con la referencia a Codigo
-        const nuevoIntento = new Intento({
-            userId,
-            codigo: codigoValido._id,
-            fecha: new Date()
-        });
+        const nuevoIntento = new Intento({ userId, codigo: codigoValido._id });
         await nuevoIntento.save();
 
         res.json({ message: `Ganaste: ${codigoValido.premio}` });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error en el servidor' });
+        res.status(500).json({ message: 'Error al registrar el código' });
     }
 };
+
 
 // Mostrar la tabla del usuario con sus códigos ingresados
 exports.tablaUser = async (req, res) => {
@@ -117,34 +117,33 @@ exports.tablaUser = async (req, res) => {
 // Mostrar la tabla para el admin con todos los usuarios ganadores
 exports.tablaAdmin = async (req, res) => {
     try {
-        const codigosGanadores = await Codigo.find({ estado: { $ne: null } }).populate('estado');
-        const ganadores = [];
+        const codigosGanadores = await Codigo.find({ estado: 'reclamado' }).populate({
+            path: 'estado',
+            model: 'UserInfo'
+        });
 
-        for (let codigo of codigosGanadores) {
-            const intento = await Intento.findOne({ codigo: codigo._id }).populate('userId');
-            if (intento && intento.userId) {
-                ganadores.push({
-                    fecha: intento.fecha,
-                    nombre: intento.userId.nombre,
-                    cedula: intento.userId.cedula,
-                    celular: intento.userId.celular,
-                    codigo: codigo.codigo,
-                    premio: codigo.premio
-                });
-            }
-        }
+        const ganadores = codigosGanadores.map(codigo => ({
+            fecha: codigo.fecha,
+            nombre: codigo.estado.nombre,
+            cedula: codigo.estado.cedula,
+            celular: codigo.estado.celular,
+            codigo: codigo.codigo,
+            premio: codigo.premio
+        }));
+
         res.json(ganadores);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error en el servidor' });
+        res.status(500).json({ message: 'Error al obtener la tabla de ganadores' });
     }
 };
 
-// Obtener todos los códigos disponibles
+
+// Obtener todos los códigos disponibles (no reclamados)
 exports.allCodigo = async (req, res) => {
     try {
-        const codigos = await Codigo.find({ estado: null });
-        res.json(codigos);
+        const codigosDisponibles = await Codigo.find({ estado: null });
+        res.json(codigosDisponibles);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error en el servidor' });
